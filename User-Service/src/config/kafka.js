@@ -15,10 +15,10 @@ const kafka = new Kafka({
 const producer = kafka.producer({
   allowAutoTopicCreation: true,
   transactionTimeout: 30000,
-  idempotent: true, //ensures exactly once-delivery so that duplicate messages are not stored in kafka
-  maxInFlightRequests: 5, //at a time producer can send max 5 req to broker without waiting for resposne so 6th req sent when 1st would be completed
+  idempotent: true,
+  maxInFlightRequests: 5,
   retry: {
-    retries: 5, //max retries 5 if the broker is not available
+    retries: 5,
   },
 });
 

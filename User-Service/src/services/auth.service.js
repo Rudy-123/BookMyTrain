@@ -1,4 +1,3 @@
-//it is responsible for generation of otp and optsessionid as well that's passes in the cookie
 const {
   ConflictError,
   BadRequestError,
@@ -158,7 +157,6 @@ const verifyGoogleIdToken = async (idToken, deviceId) => {
       });
       return existingUser;
     }
-    //if not in auth provider and not in user table so create new and dono tables me entry
     return await tx.user.create({
       data: {
         email: googleUser.email,

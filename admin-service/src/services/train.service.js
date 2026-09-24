@@ -52,7 +52,6 @@ const createRoute = async (data) => {
   if (!train) {
     throw new NotFoundError("Train Not Found");
   }
-  ///every train wouold be having a single route so check that already a route does not exist
   const existingRoute = await prisma.route.findUnique({
     where: { trainId },
   });
@@ -60,7 +59,6 @@ const createRoute = async (data) => {
     throw new ConflictError("Route already exists for this train");
   }
 
-  //collect the stationIds, that will have the record of stations in the route
   const stationIds = stations.map((station) => station.stationId);
   const existingStations = await prisma.station.findMany({
     where: { id: { in: stationIds } },
@@ -73,7 +71,7 @@ const createRoute = async (data) => {
   );
   for (let i = 0; i < sorted.length; i++) {
     if (sorted[i].sequenceNumber !== i + 1) {
-      throw new BadRequestError("Sequence numbers must be continous");
+      throw new BadRequestError("Sequence numbers must be continuous");
     }
   }
   const route = await prisma.route.create({

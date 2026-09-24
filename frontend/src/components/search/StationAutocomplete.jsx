@@ -7,12 +7,14 @@ export default function StationAutocomplete({ label, value, onChange, placeholde
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const debouncedQuery = useDebounce(query, 300);
   const wrapperRef = useRef(null);
 
   useEffect(() => {
     if (debouncedQuery.length < 2) {
       setSuggestions([]);
+      setLoading(false);
       return;
     }
     let cancelled = false;
@@ -21,6 +23,7 @@ export default function StationAutocomplete({ label, value, onChange, placeholde
       if (!cancelled) {
         setSuggestions(res.data || []);
         setOpen(true);
+        setActiveIndex(-1);
       }
     }).catch(() => {
       if (!cancelled) setSuggestions([]);
@@ -47,6 +50,24 @@ export default function StationAutocomplete({ label, value, onChange, placeholde
     setQuery(`${station.name} (${station.code})`);
     onChange(station.code, station.name);
     setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!open || suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < suggestions.length) {
+        handleSelect(suggestions[activeIndex]);
+      }
+    }
   };
 
   return (
@@ -60,6 +81,7 @@ export default function StationAutocomplete({ label, value, onChange, placeholde
           if (e.target.value.length < 2) onChange('', '');
         }}
         onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className="input-field"
       />
@@ -69,12 +91,12 @@ export default function StationAutocomplete({ label, value, onChange, placeholde
         </div>
       )}
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {suggestions.map((s) => (
+        <ul className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto text-gray-900">
+          {suggestions.map((s, index) => (
             <li
               key={s.stationId || s.code}
               onClick={() => handleSelect(s)}
-              className="px-4 py-2.5 hover:bg-primary-50 cursor-pointer text-sm flex justify-between"
+              className={`px-4 py-2.5 cursor-pointer text-sm flex justify-between ${index === activeIndex ? 'bg-primary-50' : 'hover:bg-primary-50'}`}
             >
               <span className="font-medium">{s.name}</span>
               <span className="text-gray-400 text-xs">{s.code}</span>

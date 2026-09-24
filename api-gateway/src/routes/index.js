@@ -2,7 +2,6 @@ const express = require("express");
 const { requireAuth } = require("../middleware/auth.middleware");
 const { createProxy, getCircuitBreakerStatus } = require("../services/proxy");
 const {
-  ipRateLimit,
   endpointRateLimit,
   combinedRateLimit,
 } = require("../middleware/rateLimiting.middleware");

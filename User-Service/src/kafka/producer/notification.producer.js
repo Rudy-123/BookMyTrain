@@ -4,11 +4,11 @@ const { KAFKA_TOPICS } = require("../../../../shared/constants/kafka-topics");
 
 class NotificationProducer {
   constructor() {
-    this.isInitialized = false; //for the singleton behaviour as there should be only 1 single connection btwn the producer and kafka broker
+    this.isInitialized = false;
   }
   async initialize() {
     if (!this.isInitialized) {
-      await connectProducer(); //connect to the producer
+      await connectProducer();
       this.isInitialized = true;
     }
   }
@@ -43,7 +43,7 @@ class NotificationProducer {
   }
   async sendOTPEmail(email, otp, ttlMinutes = 5) {
     return this.sendMessage(
-      KAFKA_TOPICS.OTP_EMAIL, //it would tell us that this particular message is regarding wwhich topic we hv 2 topics 1st is the otp mail and 2nd is the welcome mail
+      KAFKA_TOPICS.OTP_EMAIL,
       `otp-${email}`,
       { email, otp, ttlMinutes },
     );

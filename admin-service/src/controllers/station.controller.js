@@ -11,8 +11,6 @@ exports.createStation = asyncHandler(async (req, res) => {
     );
   }
 
-  // Note: Ensure stationService is required at the top if you use it here.
-  // Assuming it's imported globally or will be added soon.
   const station = await stationService.createStation({
     code: code.toUpperCase(),
     name,

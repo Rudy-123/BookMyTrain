@@ -25,7 +25,7 @@ class EmailConsumer {
             });
             await this.handleMessage(topic, value);
           } catch (error) {
-            logger.info("Error processing message", {
+            logger.error("Error processing message", {
               topic,
               partition,
               offset: message.offset,

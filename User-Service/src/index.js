@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const { config } = require("./config");
 const logger = require("./config/logger");
+const { disconnectProducer } = require("./config/kafka");
 const errorHandler = require("./middlewares/error.middleware");
 const { reqLogger } = require("./middlewares/req.middleware");
 const authRoutes = require("./routes/auth.route");

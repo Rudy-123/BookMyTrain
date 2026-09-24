@@ -1,5 +1,5 @@
-const { AppError } = require("../utils/error"); //for custom errors
-const logger = require("../config/logger"); //for logging
+const { AppError } = require("../utils/error");
+const logger = require("../config/logger");
 const config = require("../config");
 module.exports = (err, req, res, next) => {
   if (err instanceof AppError) {
@@ -9,7 +9,7 @@ module.exports = (err, req, res, next) => {
       message: err.message,
     });
   }
-  console.error("UNHANDLES ERROR: ", err);
+  logger.error("UNHANDLED ERROR: ", err);
   if (config.NODE_ENV !== "production") {
     logger.error({
       message: err.message,

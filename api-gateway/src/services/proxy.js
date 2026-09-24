@@ -12,12 +12,12 @@ class CircuitBreaker {
     threshold = config.CIRCUIT_BREAKER_THRESHOLD,
     timeout = config.CIRCUIT_BREAKER_TIMEOUT,
   ) {
-    ((this.serviceName = serviceName),
-      (this.failureCount = 0),
-      (this.threshold = threshold),
-      (this.timeout = timeout),
-      (this.state = "CLOSED"),
-      (this.nextAttempt = Date.now()));
+    this.serviceName = serviceName;
+    this.failureCount = 0;
+    this.threshold = threshold;
+    this.timeout = timeout;
+    this.state = "CLOSED";
+    this.nextAttempt = Date.now();
   }
   async execute(request) {
     if (this.state == "OPEN") {
@@ -167,7 +167,6 @@ async function forwardRequest(
       };
     }
 
-    // Network error or service down--You would have seen this in video
     logger.error(`Network error while calling ${serviceUrl}:`, err.message);
     throw new ServiceUnavailableError(
       `Service temporarily unavailable: ${err.message}`,

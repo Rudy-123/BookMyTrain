@@ -3,7 +3,6 @@ const { config } = require("../config");
 const { UnauthorizedError } = require("../utils/error");
 const logger = require("../config/logger");
 
-//middleware to verify access token from auth header, if authenticated then fetch userid and pass it to the next microservice
 function requireAuth(req, res, next) {
   try {
     let accessToken;
@@ -12,7 +11,6 @@ function requireAuth(req, res, next) {
       accessToken = authHeader.split(" ")[1];
     }
     if (!accessToken && req.cookies) {
-      //if token not got in header then watch in cookies
       accessToken = req.cookies.accessToken;
     }
     if (!accessToken) {
@@ -22,9 +20,7 @@ function requireAuth(req, res, next) {
     if (!payload.id) {
       throw new UnauthorizedError("Invalid token payload");
     }
-    //attach user for the further services
     req.user = {
-      //req object add the user
       id: payload.id,
     };
     req.headers["x-user-id"] = payload.id.toString();

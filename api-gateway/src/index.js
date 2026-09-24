@@ -11,12 +11,6 @@ const { notFound } = require("./middleware/notFound.middleware");
 const { reqLogger } = require("./middleware/req.middleware");
 const routes = require("./routes");
 const app = express();
-const {
-  createProxy,
-  CircuitBreaker,
-  circuitBreakers,
-  getCircuitBreakerStatus,
-} = require("./services/proxy");
 
 app.use(cors());
 app.use(

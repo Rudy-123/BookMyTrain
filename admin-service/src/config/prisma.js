@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { Pool } = require("pg");
-const { config } = require("./index"); // Assuming index.js exports config
+const { config } = require("./index");
 
 const connectionString = config.DATABASE_URL;
 

@@ -8,7 +8,7 @@ const config = {
   REDIS_URL: process.env.REDIS_URL,
   KAFKA_BROKER: process.env.KAFKA_BROKER,
   KAFKA_CLIENT_ID: process.env.KAFKA_CLIENT_ID,
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "http:localhost:4000",
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "http://localhost:4000",
   OTP_TTL: process.env.OTP_TTL || 300,
   OTP_RATE_MAX_PER_HOUR: process.env.OTP_RATE_MAX_PER_HOUR || 5,
   OTP_MAX_VERIFY_ATTEMPTS: process.env.OTP_MAX_VERIFY_ATTEMPTS || 5,

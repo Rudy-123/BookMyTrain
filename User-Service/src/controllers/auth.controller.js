@@ -1,5 +1,3 @@
-//main logic of this is to check for the incoming request and check the necessary conditions
-//then wait for the optsession id generation from the auth.service.js
 
 const { BadRequestError, UnauthorizedError } = require("../utils/error");
 const asyncHandler = require("../utils/asyncHandler");
@@ -109,13 +107,11 @@ exports.rotateRefreshToken = asyncHandler(async (req, res) => {
 });
 
 //verify the google id token received from the frontend
-//token was issued by google, sent to frontend and then forwarded to backend through axios.post
 exports.verifyGoogleIdToken = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
   if (!idToken) {
     throw new BadRequestError("Invalid Google ID Token", "INVALID TOKEN");
   }
-  //if the token is there and correct then return the user
   const deviceId = getDeviceFingerprint(req);
   const { accessToken, refreshToken, loggedInUser } =
     await authService.verifyGoogleIdToken(idToken, deviceId);

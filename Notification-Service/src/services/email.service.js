@@ -14,7 +14,7 @@ sgMail.setApiKey(config.SENDGRID_API_KEY);
 
 class EmailService {
   constructor() {
-    ((this.from = config.MAIL_SEND), (this.maxRetries = 3));
+    this.from = config.MAIL_SEND; this.maxRetries = 3;
   }
   async sendWithRetry(msg, retries = 0) {
     try {

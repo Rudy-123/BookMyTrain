@@ -1,6 +1,5 @@
 const logger = require("../config/logger");
 const prisma = require("../config/prisma");
-const { parse } = require("dotenv");
 const {
   NotFoundError,
   BadRequestError,

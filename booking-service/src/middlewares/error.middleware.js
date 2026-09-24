@@ -11,7 +11,7 @@ module.exports = (err, req, res, next) => {
           });
      }
 
-     console.error("UNHANDLED ERROR:", err);
+     logger.error("UNHANDLED ERROR:", err);
 
      if(config.NODE_ENV !== "production"){
           logger.error({

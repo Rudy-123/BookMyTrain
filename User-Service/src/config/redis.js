@@ -5,7 +5,7 @@ const { error } = require("winston");
 
 class RedisClient {
   static instance;
-  static isconnected = false;
+  static isConnected = false;
 
   constructor() {}
 
@@ -24,15 +24,15 @@ class RedisClient {
   }
 
   static setupEventListeners() {
-    //Handle all type of things such as connection,error,close connection,reconnect etc etc
     RedisClient.instance.on("connect", () => {
-      logger.info("Connected to Redis"); //create a log if redis connected successfully
+      RedisClient.isConnected = true;
+      logger.info("Connected to Redis");
     });
     RedisClient.instance.on("error", (err) => {
       logger.error("Redis Connection Error:", err.message);
     });
     RedisClient.instance.on("close", () => {
-      RedisClient.isconnected = false;
+      RedisClient.isConnected = false;
       logger.info("Connection to Redis Closed");
     });
     RedisClient.instance.on("reconnecting", () => {
@@ -40,11 +40,12 @@ class RedisClient {
     });
 
     RedisClient.instance.on("ready", () => {
+      RedisClient.isConnected = true;
       logger.warn("Redis client is ready");
     });
 
     RedisClient.instance.on("end", () => {
-      RedisClient.isconnected = false;
+      RedisClient.isConnected = false;
       logger.warn("Redis connection ended");
     });
   }

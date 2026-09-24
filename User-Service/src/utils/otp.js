@@ -17,7 +17,6 @@ function hmacFor(email, otp) {
 
 async function generateAndStoreOtp(meta) {
   //generate the otp and store the otp in redis
-  //1 hr me 1 single user max 5 opt's generate kr sakta h then too many requests
   const ratekey = `otp:rate:${meta.email}`;
   const sentCount = parseInt((await redis.get(ratekey)) || "0", 10);
   if (sentCount > 5) {

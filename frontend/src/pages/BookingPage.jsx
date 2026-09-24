@@ -16,7 +16,7 @@ export default function BookingPage() {
   const seatIds = useMemo(() => seats.map((s) => s.seatId), [seats]);
   const totalPrice = useMemo(() => seats.reduce((sum, s) => sum + (s.price || 0), 0), [seats]);
 
-  const { register, handleSubmit, formState: { errors, isValid }, getValues } = useForm({
+  const { register, handleSubmit, formState: { errors, isValid }, getValues, watch } = useForm({
     mode: 'onChange',
   });
 
@@ -41,7 +41,7 @@ export default function BookingPage() {
       </div>
 
       <PaymentButton
-        passengers={getValues('passengers') || []}
+        passengers={watch('passengers') || []}
         scheduleId={scheduleId}
         seatIds={seatIds}
         disabled={!isValid}

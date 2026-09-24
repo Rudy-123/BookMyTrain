@@ -12,7 +12,7 @@ module.exports = (err, req, res, next) => {
      }
 
      const errMsg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
-     console.error("UNHANDLED ERROR:", errMsg, err.stack || '');
+     logger.error(`UNHANDLED ERROR: ${errMsg}`, { stack: err.stack || '' });
 
      if(config.NODE_ENV !== "production"){
           logger.error(`${errMsg} | ${req.method} ${req.path}`, {

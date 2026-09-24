@@ -36,7 +36,22 @@ Thumbs.db
 *.db
 *.db-journal
 
-# Ignore write markdown
+# Ignore write/scratch markdown
 write.md
 DB_Selection.md
 booking-flow.md
+
+# Test files & utility scripts 
+User-Service/test-google-auth.html
+booking-service/src/test-500.js
+booking-service/src/test-booking.js
+payment-service/test-db.js
+admin-service/fetchIds.js
+admin-service/routetest.md
+admin-service/src/reindex.js
+admin-service/src/reindex2.js
+inventory-service/src/seed-inventory.js
+
+# Root-level lock file (each service has its own)
+/package-lock.json
+/package.json

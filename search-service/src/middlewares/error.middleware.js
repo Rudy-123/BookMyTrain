@@ -1,4 +1,3 @@
-// middlewares/error.middleware.js
 const { AppError } = require("../utils/error");
 const { config } = require("../config");
 const logger = require("../config/logger");
@@ -12,7 +11,7 @@ module.exports = (err, req, res, next) => {
     });
   }
 
-  console.error("UNHANDLED ERROR:", err);
+  logger.error("UNHANDLED ERROR:", err);
 
   if (config.NODE_ENV !== "production") {
     logger.error({

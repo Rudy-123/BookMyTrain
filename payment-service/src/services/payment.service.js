@@ -4,6 +4,10 @@ const {
   NotFoundError,
   ConflictError,
 } = require("../utils/error");
+const prisma = require("../config/prisma");
+const logger = require("../config/logger");
+const { config } = require("../config");
+const { getGateway } = require("./gateways/gateway.factory");
 
 const withIdempotency = async (key, fn) => {
   const existing = await prisma.idempotencyRecord.findUnique({
@@ -37,13 +41,14 @@ const createPaymentOrder = async (
   }
 
   return withIdempotency(`payment-order:${idempotencyKey}`, async () => {
-    const gateway = getGateway(); //gave the razorpay instance
+    const gateway = getGateway();
     const gatewayResult = await gateway.createOrder(amount, "INR", bookingId, {
       bookingId,
       userId,
     });
     const paymentOrder = await prisma.paymentOrder.create({
       data: {
+        bookingId,
         userId,
         amount,
         currency: "INR",
@@ -241,6 +246,16 @@ const handleWebhook = async (rawBody, signature) => {
     return handlePaymentFailed(paymentOrder, gatewayPaymentId, paymentEntity);
   }
   if (event === "refund.processed" || event === "refund.created") {
+    const refundEntity = payload.payload?.refund?.entity;
+    if (refundEntity) {
+      const refundStatus = event === "refund.processed" ? "COMPLETED" : "PROCESSING";
+      await prisma.refund.updateMany({
+        where: { gatewayRefundId: refundEntity.id },
+        data: { status: refundStatus }
+      });
+      return { status: "refund_updated", refundStatus };
+    }
+    return { status: "ignored", reason: "missing_refund_entity" };
   }
 };
 
@@ -327,4 +342,101 @@ const handlePaymentFailed = async (
     });
 
   return { status: "failed", paymentOrderId: paymentOrder.id };
+};
+
+const getPaymentOrder = async (paymentOrderId) => {
+  const paymentOrder = await prisma.paymentOrder.findUnique({
+    where: { id: paymentOrderId },
+  });
+  if (!paymentOrder) {
+    throw new NotFoundError("Payment Order not found");
+  }
+  return paymentOrder;
+};
+
+const initiateRefund = async (paymentOrderId, amount, reason, idempotencyKey) => {
+  if (!paymentOrderId || !amount || !idempotencyKey) {
+    throw new BadRequestError(
+      "paymentOrderId, amount, and idempotencyKey are required",
+    );
+  }
+
+  return withIdempotency(`refund:${idempotencyKey}`, async () => {
+    const paymentOrder = await prisma.paymentOrder.findUnique({
+      where: { id: paymentOrderId },
+    });
+
+    if (!paymentOrder) {
+      throw new NotFoundError("Payment order not found");
+    }
+
+    if (paymentOrder.status !== "CAPTURED") {
+      throw new BadRequestError(
+        `Cannot refund payment in status: ${paymentOrder.status}`,
+      );
+    }
+
+    if (!paymentOrder.gatewayPaymentId) {
+      throw new BadRequestError("No gateway payment ID — cannot refund");
+    }
+
+    const gateway = getGateway();
+    const refundResult = await gateway.initiateRefund(
+      paymentOrder.gatewayPaymentId,
+      amount,
+      { reason, paymentOrderId },
+    );
+
+    const refund = await prisma.refund.create({
+      data: {
+        paymentOrderId,
+        amount,
+        reason: reason || "booking_compensation",
+        status: "INITIATED",
+        idempotencyKey,
+        gatewayRefundId: refundResult.gatewayRefundId,
+      },
+    });
+
+    // Update payment order status
+    await prisma.paymentOrder.update({
+      where: { id: paymentOrderId },
+      data: {
+        status: amount >= paymentOrder.amount ? "REFUNDED" : "PARTIALLY_REFUNDED",
+        version: { increment: 1 },
+      },
+    });
+
+    // Audit log
+    await prisma.paymentAuditLog.create({
+      data: {
+        paymentOrderId,
+        action: "REFUND_INITIATED",
+        gatewayResponse: refundResult.rawResponse,
+        metadata: { amount, reason, refundId: refund.id },
+      },
+    });
+
+    logger.info(`Refund initiated: ${refund.id}`, {
+      paymentOrderId,
+      amount,
+      gatewayRefundId: refundResult.gatewayRefundId,
+    });
+
+    return {
+      refundId: refund.id,
+      paymentOrderId,
+      amount,
+      status: refund.status,
+      gatewayRefundId: refundResult.gatewayRefundId,
+    };
+  });
+};
+
+module.exports = {
+  createPaymentOrder,
+  verifyAndCapturePayment,
+  handleWebhook,
+  getPaymentOrder,
+  initiateRefund,
 };

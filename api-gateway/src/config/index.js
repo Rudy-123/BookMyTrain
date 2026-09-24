@@ -2,6 +2,7 @@ const config = {
   PORT: process.env.PORT || 4000,
   SERVICE_NAME: require("../../package.json").name,
   NODE_ENV: process.env.NODE_ENV || "development",
+  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
 
   REDIS_URL: process.env.REDIS_URL,
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "http://localhost:3000",

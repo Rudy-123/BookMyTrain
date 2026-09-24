@@ -8,7 +8,7 @@ const sendOTPEmail = async (email, otp) => {
   try {
     const msg = {
       to: email, // receiver email
-      from: "rudrapatel47108@gmail.com", // Change this to your verified SendGrid sender email
+      from: "rudrapatel47108@gmail.com",
       subject: "Welcome to IRCTC! Your Verification OTP",
       text: `Your OTP for registration is: ${otp}. It is valid for 5 minutes.`,
       html: `

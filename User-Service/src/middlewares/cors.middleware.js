@@ -1,7 +1,7 @@
-const cors = require("cors"); //ready made package to handle cors
+const cors = require("cors");
 const { config } = require("../config");
 
-const allowedOrigins = config.ALLOWED_ORIGINS //takes the values from the .env files so allowed origins is the list of links
+const allowedOrigins = config.ALLOWED_ORIGINS
   ? config.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [];
 

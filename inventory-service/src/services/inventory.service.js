@@ -1,9 +1,38 @@
-const { NotFoundError } = require("../../../booking-service/src/utils/error");
 const {
   BadRequestError,
   ConflictError,
   ForbiddenError,
+  NotFoundError,
 } = require("../utils/error");
+const logger = require("../config/logger");
+const prisma = require("../config/prisma");
+const inventoryProducer = require("../kafka/producer/inventory.producer");
+
+/**
+ * Retry transaction on serialization failures or deadlocks
+ */
+const retryTransaction = async (fn, maxRetries = 3) => {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt++;
+      // P2034: Transaction failed due to a write conflict or a deadlock.
+      // Postgres error codes for deadlock/serialization failure.
+      const isRetryable =
+        error.code === 'P2034' ||
+        (error.meta && (error.meta.code === '40001' || error.meta.code === '40P01'));
+      
+      if (!isRetryable || attempt >= maxRetries) {
+        throw error;
+      }
+      
+      const delay = 100 * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
 
 const initializeInventory = async (eventData) => {
   const { scheduleId, trainId, trainNumber, trainName, departureDate, seats } =
@@ -36,7 +65,6 @@ const initializeInventory = async (eventData) => {
         status: "ACTIVE",
       },
     });
-    //add the seats to the inventory
     const seatData = seats.map((seat) => ({
       scheduleInventoryId: schedule.id,
       scheduleId,
@@ -48,7 +76,6 @@ const initializeInventory = async (eventData) => {
     }));
     await tx.seatInventory.createMany({ data: seatData });
 
-    //segment booking condition
     if (eventData.route && eventData.route.length > 0) {
       const routeStopData = eventData.route.map((rs) => ({
         scheduleId,
@@ -82,7 +109,7 @@ const initializeInventory = async (eventData) => {
   }
 };
 
-const cancelSchdeuleInventory = async (eventData) => {
+const cancelScheduleInventory = async (eventData) => {
   const data = eventData.data || eventData;
   const scheduleId = data.scheduleId || data.id;
   if (!scheduleId) {
@@ -128,7 +155,6 @@ const cancelSchdeuleInventory = async (eventData) => {
   });
   logger.info(`Inventory cancelled for ${scheduleId}`);
 
-  //manage the consistency between inventory and search service
 
   try {
     await inventoryProducer.publishSeatAvailabilityUpdated(
@@ -140,7 +166,7 @@ const cancelSchdeuleInventory = async (eventData) => {
     );
   } catch (err) {
     logger.error(
-      `Failed to publish cancelled availability after retries : ${scheduleId}, {error:err.message}`,
+      `Failed to publish cancelled availability after retries : ${scheduleId}, ${err.message}`,
     );
   }
 };
@@ -241,7 +267,6 @@ async function recountScheduleAggregates(tx, scheduleId) {
   return { available, locked, booked };
 }
 
-//checks the availablility of the schedule and provides it
 const getAvailability = async (scheduleId) => {
   const schedule = await prisma.scheduleInventory.findUnique({
     where: { scheduleId },
@@ -340,11 +365,10 @@ const getSeats = async (scheduleId, filters = {}) => {
   };
 };
 
-//called during saga step1 initially when we hv to lock seats
 const lockSeats = async (
   scheduleId,
-  seatId,
-  useImperativeHandle,
+  seatIds,
+  userId,
   ttlSeconds,
   fromSeq,
   toSeq,
@@ -366,7 +390,6 @@ const lockSeats = async (
         if (schedule.status !== "ACTIVE") {
           throw new BadRequestError("Schedule is not active");
         }
-        //execute lock seats in seat inventory table
         // Row-level lock on requested seats
         const seats = await tx.$queryRaw`
                     SELECT id, "seatId", "seatNumber", status, "lockedBy"
@@ -375,10 +398,10 @@ const lockSeats = async (
                     AND "seatId" = ANY(${seatIds}::text[])
                     FOR UPDATE NOWAIT
                `;
-        if (seats.length !== seatsIds.length) {
+        if (seatIds.length !== seats.length) {
           const foundIds = new Set(seats.map((s) => s.seatId));
-          const missing = seatIds.filter(s((id) => foundIds.has(id)));
-          throw new NotFoundError("Seats not found");
+          const missing = seatIds.filter((id) => !foundIds.has(id));
+          throw new NotFoundError(`Seats not found: ${missing.join(", ")}`);
         }
         if (fromSeq && toSeq) {
           // Check for overlapping segment locks on any of the requested seats
@@ -428,7 +451,7 @@ const lockSeats = async (
                     `;
           const affectedSeatIds = seats.map((s) => s.seatId);
           await recomputeSegmentSeatStatuses(tx, scheduleId, affectedSeatIds);
-          const counts = await recountScheduleAggregrate(tx, scheduleId);
+          const counts = await recountScheduleAggregates(tx, scheduleId);
           return {
             scheduleId,
             trainId: schedule.trainId,
@@ -440,7 +463,6 @@ const lockSeats = async (
             counts,
           };
         }
-        //full booking start to end, arithmetic operation can be used to update in this case
         // Full-journey: unconditional lock (original fast path)
         const seatPkIds = seats.map((s) => s.id);
         await tx.$executeRaw`
@@ -616,7 +638,6 @@ const unlockSeats = async (scheduleId, seatIds, userId, fromSeq, toSeq) => {
   return result;
 };
 
-//main function of this is to mark the status of seat from locked to booked
 const confirmSeats = async (
   scheduleId,
   seatIds,
@@ -635,7 +656,7 @@ const confirmSeats = async (
                     AND "seatId" = ANY(${seatIds}::text[])
                     FOR UPDATE NOWAIT
                `;
-        if (seatsIds.length !== seats.length) {
+        if (seatIds.length !== seats.length) {
           throw new NotFoundError("One or more seats not found");
         }
         if (fromSeq && toSeq) {
@@ -658,7 +679,7 @@ const confirmSeats = async (
             );
           }
         } else {
-          const notlocked = seats.filter((s) => s.status !== "LOCKED");
+          const notLocked = seats.filter((s) => s.status !== "LOCKED");
           if (notLocked.length > 0) {
             throw new ConflictError(
               "Lock expired or seats not in locked state",
@@ -678,7 +699,7 @@ const confirmSeats = async (
           });
           return {
             scheduleId,
-            trainId,
+            trainId: schedule.trainId,
             bookingId,
             confirmedSeats: seats.map((s) => ({
               seatId: s.seatId,
@@ -748,7 +769,7 @@ const confirmSeats = async (
 };
 
 const cancelBooking = async (scheduleId, bookingId, userId) => {
-  retryTransaction(async () => {
+  const result = await retryTransaction(async () => {
     return prisma.$transaction(
       async (tx) => {
         const segmentLocks = await tx.seatSegmentLock.findMany({
@@ -760,7 +781,7 @@ const cancelBooking = async (scheduleId, bookingId, userId) => {
                          WHERE "scheduleId" = ${scheduleId}
                          AND "bookingId" = ${bookingId}
                     `;
-          const affectedSeatId = [
+          const affectedSeatIds = [
             ...new Set(segmentLocks.map((l) => l.seatId)),
           ];
           await recomputeSegmentSeatStatuses(tx, scheduleId, affectedSeatIds);
@@ -825,9 +846,8 @@ const cancelBooking = async (scheduleId, bookingId, userId) => {
       { timeout: 10000 },
     );
   });
-};
 
-try {
+  try {
   await inventoryProducer.publishSeatAvailabilityUpdated(
     result.scheduleId,
     result.trainId,
@@ -835,21 +855,23 @@ try {
     result.counts.locked,
     result.counts.booked,
   );
-} catch (err) {
-  logger.error("Failed to publish availability after cancel-booking", {
-    scheduleId: result.scheduleId,
-    error: err.message,
-  });
-}
+  } catch (err) {
+    logger.error("Failed to publish availability after cancel-booking", {
+      scheduleId: result.scheduleId,
+      error: err.message,
+    });
+  }
 
-return result;
+  return result;
+};
 
 module.exports = {
   initializeInventory,
-  cancelSchdeuleInventory,
+  cancelScheduleInventory,
   getAvailability,
   getSeats,
   lockSeats,
+  unlockSeats,
   confirmSeats,
   recomputeSegmentSeatStatuses,
   recountScheduleAggregates,

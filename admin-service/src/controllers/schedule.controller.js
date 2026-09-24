@@ -1,6 +1,5 @@
 const asyncHandler = require("../utils/asyncHandler");
 const { BadRequestError } = require("../utils/error");
-const { createTrain } = require("./train.controller");
 const scheduleService = require("../services/schedule.service");
 
 exports.createSchedule = asyncHandler(async (req, res) => {
